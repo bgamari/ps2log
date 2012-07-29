@@ -42,7 +42,7 @@ DefaultDestDir   = 12
 ; perform port related actions from mouse.inf
 ;Include=msmouse.inf
 ;Needs=PS2_Inst
-Include=apfiltr.inf
+Include=alps/apfiltr.inf
 Needs=MouFilter_Inst.ntamd64
 
 ; Copy the driver over
@@ -66,7 +66,7 @@ AddService = ps2log,  , ps2log_Service_Inst
 ; Install the port driver and mouclass from msmouse.inf
 ;Include=msmouse.inf
 ;Needs=PS2_Inst.Services
-Include=Apfiltr.inf
+Include=alps/apfiltr.inf
 Needs=MouFilter_Inst.ntamd64.Services
 
 [ps2log_Service_Inst]
@@ -146,9 +146,9 @@ SERVICEROOT    = "System\CurrentControlSet\Services"
 ; Localizable Strings
 ;
 
-DiskId1 = "WDK Example Installation Disk #1 (mouse)"
+DiskId1 = "ps2log Installation Disk #1 (mouse)"
 DDK_Ex = "WDK Example Device that needs filtering"
-ps2log.SvcDesc="Mouse Filter Example (WDF Version )"
+ps2log.SvcDesc="PS/2 Logger Filter Driver"
 
 
 
