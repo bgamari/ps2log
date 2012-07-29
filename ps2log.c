@@ -17,6 +17,9 @@ Notes:
 --*/
 
 #include "ps2log.h"
+#include <ntstrsafe.h>
+
+HANDLE LogFile;
 
 #ifdef ALLOC_PRAGMA
 #pragma alloc_text (INIT, DriverEntry)
@@ -27,6 +30,57 @@ Notes:
 #pragma warning(push)
 #pragma warning(disable:4055) // type case from PVOID to PSERVICE_CALLBACK_ROUTINE
 #pragma warning(disable:4152) // function/data pointer conversion in expression
+
+static
+NTSTATUS
+InitializeLogFile ()
+{
+	NTSTATUS status;
+	UNICODE_STRING     uniName;
+	OBJECT_ATTRIBUTES  objAttr;
+	IO_STATUS_BLOCK   ioStatusBlock;
+
+	RtlInitUnicodeString(&uniName, L"\\DosDevices\\C:\\ps2log.txt");
+	InitializeObjectAttributes(&objAttr, &uniName,
+			OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE,
+			NULL, NULL);
+
+	status = ZwCreateFile(&LogFile,
+			      GENERIC_WRITE,
+			      &objAttr, &ioStatusBlock,  NULL,
+			      FILE_ATTRIBUTE_NORMAL,
+			      0,
+			      FILE_OVERWRITE_IF,
+			      FILE_SYNCHRONOUS_IO_NONALERT,
+			      NULL, 0);
+	if (!NT_SUCCESS(status))
+		DebugPrint(("Failed to open log file\n"));
+	return status;
+}
+
+static
+NTSTATUS
+LogByte(
+		IN UCHAR Direction,
+		IN UCHAR DataByte
+	)
+{
+	NTSTATUS status;
+	char log_buffer[10];
+	IO_STATUS_BLOCK ioStatusBlock;
+	size_t length;
+
+	status = RtlStringCbPrintfA(log_buffer, 10, "%c %02x", Direction, DataByte);
+	status = RtlStringCbLengthA(log_buffer, 10, &length);
+	status = ZwWriteFile(LogFile, NULL, NULL, NULL, &ioStatusBlock,
+			log_buffer, (ULONG) length,
+			0, NULL);
+	if (!NT_SUCCESS(status)) {
+		DebugPrint(("Failed to output to log\n"));
+		return status;
+	}
+	return STATUS_SUCCESS;
+}
 
 NTSTATUS
 DriverEntry (
@@ -71,6 +125,8 @@ DriverEntry (
 	if (!NT_SUCCESS(status)) {
 		DebugPrint( ("WdfDriverCreate failed with status 0x%x\n", status));
 	}
+
+	InitializeLogFile();
 
 	return status; 
 }
@@ -252,7 +308,6 @@ MouFilter_EvtIoInternalDeviceControl(
 	WDFDEVICE                 hDevice;
 	size_t                           length; 
 	char *buffer;
-	char *event;
 	unsigned int i;
 
 	UNREFERENCED_PARAMETER(OutputBufferLength);
@@ -352,7 +407,7 @@ MouFilter_EvtIoInternalDeviceControl(
 			//
 			devExt->IsrWritePort = hookMouse->IsrWritePort;
 			devExt->CallContext = hookMouse->CallContext;
-			devExt->QueueMousePacket = hookMouse->QueueMousePacket;n
+			devExt->QueueMousePacket = hookMouse->QueueMousePacket;
 
 			status = STATUS_SUCCESS;
 			break;
@@ -369,11 +424,10 @@ MouFilter_EvtIoInternalDeviceControl(
 				break;
 			}
 
-			event = IoAllocateErrorLogEntry(
-			memcpy();
-
-			for (i = 0; i < InputBufferLength; i++)
+			for (i = 0; i < InputBufferLength; i++) {
 				DebugPrint((" %02hhx", buffer[i]));
+				LogByte('S', buffer[i]);
+			}
 
 			status = STATUS_SUCCESS;
 			break;
@@ -449,7 +503,8 @@ MouFilter_IsrHook (
 
 	devExt = DeviceExtension;
 
-	DebugPrint(("Recvd byte: %02hhx\n", DataByte));
+	DebugPrint(("Recvd byte: %02hhx\n", *DataByte));
+	LogByte('R', *DataByte);
 
 	if (devExt->UpperIsrHook) {
 		retVal = (*devExt->UpperIsrHook) (devExt->UpperContext,
