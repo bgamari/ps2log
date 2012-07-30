@@ -58,6 +58,7 @@ InitializeLogFile ()
 	return status;
 }
 
+#if 0
 static
 NTSTATUS
 LogByte(
@@ -81,6 +82,19 @@ LogByte(
 	}
 	return STATUS_SUCCESS;
 }
+#else
+static
+NTSTATUS
+LogByte(
+		IN UCHAR Direction,
+		IN UCHAR DataByte
+	)
+{
+	UNREFERENCED_PARAMETER(Direction);
+	UNREFERENCED_PARAMETER(DataByte);
+	return STATUS_SUCCESS;
+}
+#endif
 
 NTSTATUS
 DriverEntry (
@@ -126,7 +140,7 @@ DriverEntry (
 		DebugPrint( ("WdfDriverCreate failed with status 0x%x\n", status));
 	}
 
-	InitializeLogFile();
+	//InitializeLogFile();
 
 	return status; 
 }
