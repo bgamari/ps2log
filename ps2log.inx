@@ -40,10 +40,10 @@ DefaultDestDir   = 12
 
 [ps2log.NT]
 ; perform port related actions from mouse.inf
-;Include=msmouse.inf
-;Needs=PS2_Inst
-Include=alps/apfiltr.inf
-Needs=MouFilter_Inst.ntamd64
+Include=msmouse.inf
+Needs=PS2_Inst
+;Include=apfiltr.inf 
+;Needs=MouFilter_Inst.ntamd64
 
 ; Copy the driver over
 CopyFiles=ps2log.CopyFiles
@@ -64,10 +64,10 @@ ps2log.sys
 [ps2log.NT.Services]
 AddService = ps2log,  , ps2log_Service_Inst
 ; Install the port driver and mouclass from msmouse.inf
-;Include=msmouse.inf
-;Needs=PS2_Inst.Services
-Include=alps/apfiltr.inf
-Needs=MouFilter_Inst.ntamd64.Services
+Include=msmouse.inf
+Needs=PS2_Inst.Services
+;Include=apfiltr.inf
+;Needs=MouFilter_Inst.ntamd64.Services
 
 [ps2log_Service_Inst]
 DisplayName    = %ps2log.SvcDesc%
@@ -82,13 +82,13 @@ ServiceBinary  = %12%\ps2log.sys
 AddReg = ps2log.HW.AddReg
 
 ; run the directives need by the port driver
-;Include=msmouse.inf
-;Needs=PS2_Inst.HW
-Include=Apfiltr.inf
-Needs=MouFilter_Inst.ntamd64.HW
+Include=msmouse.inf
+Needs=PS2_Inst.HW
+;Include=apfiltr.inf
+;Needs=MouFilter_Inst.ntamd64.HW
 
 [ps2log.HW.AddReg]
-HKR,,"UpperFilters",0x00010000,"ps2log"
+HKR,,"UpperFilters",0x00010008,"ps2log"
 
 
 ;
@@ -146,9 +146,7 @@ SERVICEROOT    = "System\CurrentControlSet\Services"
 ; Localizable Strings
 ;
 
-DiskId1 = "ps2log Installation Disk #1 (mouse)"
+DiskId2 = "ps2log Installation Disk #1 (mouse)"
 DDK_Ex = "WDK Example Device that needs filtering"
 ps2log.SvcDesc="PS/2 Logger Filter Driver"
-
-
 
