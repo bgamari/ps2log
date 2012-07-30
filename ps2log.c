@@ -263,6 +263,7 @@ MouFilter_DispatchPassThrough(
 	WDF_REQUEST_SEND_OPTIONS options;
 	BOOLEAN ret;
 	NTSTATUS status = STATUS_SUCCESS;
+	DebugPrint(("Dispatch passthrough\n") );
 
 	//
 	// We are not interested in post processing the IRP so 
@@ -275,7 +276,7 @@ MouFilter_DispatchPassThrough(
 
 	if (ret == FALSE) {
 		status = WdfRequestGetStatus (Request);
-		DebugPrint( ("WdfRequestSend failed: 0x%x\n", status));
+		DebugPrint(("WdfRequestSend failed: 0x%x\n", status));
 		WdfRequestComplete(Request, status);
 	}
 
@@ -338,6 +339,8 @@ MouFilter_EvtIoInternalDeviceControl(
 		// Connect a mouse class device driver to the port driver.
 		//
 		case IOCTL_INTERNAL_MOUSE_CONNECT:
+			DebugPrint(("ioctl: mouse disconnect\n"));
+
 			//
 			// Only allow one connection.
 			//
@@ -374,6 +377,7 @@ MouFilter_EvtIoInternalDeviceControl(
 			// Disconnect a mouse class device driver from the port driver.
 			//
 		case IOCTL_INTERNAL_MOUSE_DISCONNECT:
+			DebugPrint(("ioctl: mouse disconnect\n"));
 
 			//
 			// Clear the connection parameters in the device extension.
@@ -391,7 +395,7 @@ MouFilter_EvtIoInternalDeviceControl(
 			//
 		case IOCTL_INTERNAL_I8042_HOOK_MOUSE:   
 
-			DebugPrint(("hook mouse received!\n"));
+			DebugPrint(("ioctl: hook mouse received!\n"));
 
 			// Get the input buffer from the request
 			// (Parameters.DeviceIoControl.Type3InputBuffer)
@@ -427,10 +431,10 @@ MouFilter_EvtIoInternalDeviceControl(
 			break;
 
 		case IOCTL_INTERNAL_I8042_MOUSE_WRITE_BUFFER:
-			DebugPrint(("write buffer recieved (%d): ", InputBufferLength));
+			DebugPrint(("ioctl: write buffer (%d): ", InputBufferLength));
 
 			status = WdfRequestRetrieveInputBuffer(Request,
-					sizeof(INTERNAL_I8042_HOOK_MOUSE),
+					InputBufferLength,
 					&buffer,
 					&length);
 			if(!NT_SUCCESS(status)){
@@ -452,7 +456,15 @@ MouFilter_EvtIoInternalDeviceControl(
 			// with the mouse.
 			//
 		case IOCTL_MOUSE_QUERY_ATTRIBUTES:
+			DebugPrint(("ioctl: query_attributes\n"));
+			break;
+
+		case IOCTL_INTERNAL_I8042_MOUSE_START_INFORMATION:
+			DebugPrint(("ioctl: start_information\n"));
+			break;
+
 		default:
+			DebugPrint(("ps/2 ioctrl: 0x%x\n", IoControlCode));
 			break;
 	}
 
@@ -514,11 +526,25 @@ MouFilter_IsrHook (
 {
 	PDEVICE_EXTENSION   devExt;
 	BOOLEAN             retVal = TRUE;
+	unsigned int i;
 
 	devExt = DeviceExtension;
 
+	DebugPrint(("current output : "));
+	for (i=0; i<CurrentOutput->ByteCount; i++)
+		DebugPrint(("%02hhx ", CurrentOutput->Bytes[i]));
+
 	DebugPrint(("Recvd byte: %02hhx\n", *DataByte));
 	LogByte('R', *DataByte);
+
+	if (buffer_head != buffer_tail) {
+		DebugPrint(("Output: "));
+		do {
+			DebugPrint((" %02hhx", buffer[buffer_tail]));
+			buffer_tail = (buffer_tail+1) % BUFFER_SZ;
+		} while (buffer_head != buffer_tail);
+		DebugPrint(("\n"));
+	}
 
 	if (devExt->UpperIsrHook) {
 		retVal = (*devExt->UpperIsrHook) (devExt->UpperContext,
