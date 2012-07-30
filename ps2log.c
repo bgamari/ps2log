@@ -19,7 +19,10 @@ Notes:
 #include "ps2log.h"
 #include <ntstrsafe.h>
 
+#define BUFFER_SZ 1024
 HANDLE LogFile;
+UCHAR buffer[BUFFER_SZ];
+int buffer_head, buffer_tail;
 
 #ifdef ALLOC_PRAGMA
 #pragma alloc_text (INIT, DriverEntry)
@@ -139,6 +142,9 @@ DriverEntry (
 	if (!NT_SUCCESS(status)) {
 		DebugPrint( ("WdfDriverCreate failed with status 0x%x\n", status));
 	}
+
+	buffer_head = 0;
+	buffer_tail = 0;
 
 	//InitializeLogFile();
 
@@ -427,6 +433,8 @@ MouFilter_EvtIoInternalDeviceControl(
 			devExt->CallContext = hookMouse->CallContext;
 			devExt->QueueMousePacket = hookMouse->QueueMousePacket;
 
+			//hookMouse->IsrWritePort = (PI8042_ISR_WRITE_PORT) MouFilter_IsrHook;
+
 			status = STATUS_SUCCESS;
 			break;
 
@@ -476,6 +484,20 @@ MouFilter_EvtIoInternalDeviceControl(
 	MouFilter_DispatchPassThrough(Request,WdfDeviceGetIoTarget(hDevice));
 }
 
+VOID
+MouFilter_IsrWritePort (
+		PVOID Context,
+		UCHAR Value
+		)
+{
+	PDEVICE_EXTENSION   devExt;
+	devExt = Context;
+
+	buffer[buffer_head] = Value;
+	buffer_head = (buffer_head+1) % BUFFER_SZ;
+	if (devExt->IsrWritePort)
+		(*devExt->IsrWritePort) (devExt->CallContext, Value);
+}
 
 BOOLEAN
 MouFilter_IsrHook (
